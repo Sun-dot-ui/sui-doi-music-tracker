@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import "./audioPlayer.css";
 import Controls from "./controls";
 import WaveAnimation from "./waveAnimation";
@@ -12,81 +12,98 @@ export default function AudioPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [trackProgress, setTrackProgress] = useState(0);
 
-  const audioSrc = total[currentIndex]?.track?.preview_url;
-
-  const audioRef = useRef(new Audio(audioSrc));
+  const audioRef = useRef(null);
   const intervalRef = useRef();
   const isReady = useRef(false);
 
-  const { duration } = audioRef.current;
+  // Stable next/prev handlers using useCallback so they never go stale in closures
+  const handleNext = useCallback(() => {
+    setCurrentIndex((prev) => (prev < total.length - 1 ? prev + 1 : 0));
+  }, [total.length, setCurrentIndex]);
 
-  const startTimer = () => {
+  const handlePrev = useCallback(() => {
+    setCurrentIndex((prev) => (prev === 0 ? total.length - 1 : prev - 1));
+  }, [total.length, setCurrentIndex]);
+
+  const startTimer = useCallback(() => {
     clearInterval(intervalRef.current);
-
     intervalRef.current = setInterval(() => {
+      if (!audioRef.current) return;
       if (audioRef.current.ended) {
         handleNext();
       } else {
         setTrackProgress(audioRef.current.currentTime);
       }
     }, 1000);
-  };
+  }, [handleNext]);
 
-  // Pause logic
+  
+  useEffect(() => {
+    const audioSrc = total[currentIndex]?.track?.preview_url;
+
+    // Tear down the old audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+    }
+    clearInterval(intervalRef.current);
+    setTrackProgress(0);
+
+    if (!audioSrc) {
+      // No preview available for this track
+      setIsPlaying(false);
+      return;
+    }
+
+    const audio = new Audio(audioSrc);
+    audioRef.current = audio;
+
+    if (isReady.current) {
+      audio.play().then(() => {
+        setIsPlaying(true);
+        startTimer();
+      }).catch((err) => {
+        console.warn("Playback failed:", err);
+        setIsPlaying(false);
+      });
+    } else {
+      // Don't autoplay on first mount
+      isReady.current = true;
+    }
+  }, [currentIndex, total, startTimer]);
+
+  // Play / pause toggle
   useEffect(() => {
     if (!audioRef.current) return;
 
     if (isPlaying) {
-      audioRef.current.play();
+      audioRef.current.play().catch((err) => {
+        console.warn("Playback failed:", err);
+        setIsPlaying(false);
+      });
       startTimer();
     } else {
-      clearInterval(intervalRef.current);
       audioRef.current.pause();
+      clearInterval(intervalRef.current);
     }
-  }, [isPlaying]);
+  }, [isPlaying, startTimer]);
 
-  // Change track logic
-  useEffect(() => {
-    audioRef.current.pause();
-    audioRef.current = new Audio(audioSrc);
-    setTrackProgress(audioRef.current.currentTime);
-
-    if (isReady.current) {
-      audioRef.current.play();
-      setIsPlaying(true);
-      startTimer();
-    } else {
-      isReady.current = true;
-    }
-  }, [currentIndex]);
-
-  // Cleanup
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      audioRef.current.pause();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+      }
       clearInterval(intervalRef.current);
     };
   }, []);
 
-  const handleNext = () => {
-    if (currentIndex < total.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    } else {
-      setCurrentIndex(0);
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentIndex === 0) {
-      setCurrentIndex(total.length - 1);
-    } else {
-      setCurrentIndex(currentIndex - 1);
-    }
-  };
-
   const addZero = (n) => (n > 9 ? "" + n : "0" + n);
 
   const artists = currentTrack?.album?.artists?.map((a) => a.name) || [];
+
+  const hasPreview = !!total[currentIndex]?.track?.preview_url;
 
   return (
     <div className="player-body flex">
@@ -97,10 +114,14 @@ export default function AudioPlayer({
           className="player-album-art"
         />
       </div>
-      
+
       <div className="player-right-body flex">
         <p className="song-title">{currentTrack?.name}</p>
         <p className="song-artist">{artists.join(" | ")}</p>
+
+        {!hasPreview && (
+          <p className="no-preview-msg">No preview available for this track</p>
+        )}
 
         <div className="player-right-bottom flex">
           <div className="song-duration flex">

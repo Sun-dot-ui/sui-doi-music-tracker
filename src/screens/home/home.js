@@ -32,10 +32,11 @@ export default function Home() {
     }
   }, []);
 
-  return !token ? (
-    <Login /> 
-  ) : (
+  return (
     <Router>
+      {!token ? (
+    <Login /> 
+    ) : (
       <div className='main-body'>
         <Sidebar />
         <Routes>
@@ -44,6 +45,7 @@ export default function Home() {
           <Route path="/library" element={<Library />} />
         </Routes>
       </div>
+    )};
     </Router>
   );
 }

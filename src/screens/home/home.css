@@ -5,3 +5,11 @@
     border-radius: 30px;
     display: flex;
 }
+
+.main-content {
+    flex: 1;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
