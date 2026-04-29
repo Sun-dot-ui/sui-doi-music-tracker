@@ -3,8 +3,9 @@ import "./sidebar.css";
 import SidebarButton from './sidebarButton';
 import { BsFillMusicPlayerFill } from "react-icons/bs";
 import { HiBuildingLibrary } from "react-icons/hi2";
+import { MdOutlineFavorite } from "react-icons/md";
 import { FaSignOutAlt } from "react-icons/fa";
-import apiClient from '../../spotify';
+import apiClient from "../../spotify";
 
 export default function Sidebar() {
   const [image, setImage] = useState(
@@ -32,10 +33,11 @@ export default function Sidebar() {
       <div>
         <SidebarButton title="Library" to="/library" icon={<HiBuildingLibrary />}/>
         <SidebarButton title="Player" to="/player" icon={<BsFillMusicPlayerFill />}/>
+        <SidebarButton title="Favorites" to="/favorites" icon={<MdOutlineFavorite />} />
       </div>
       <div onClick={signOut} style={{cursor:"pointer"}}>
         <SidebarButton title="Sign Out" to="" icon={<FaSignOutAlt />}/>
       </div>
     </div>
   );
-}
+} 
